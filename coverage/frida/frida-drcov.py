@@ -264,9 +264,6 @@ def main():
     global outfile
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('target',
-            help='target process name or pid',
-            default='-1')
     parser.add_argument('-o', '--outfile',
             help='coverage file',
             default='frida-cov.log')
@@ -279,6 +276,12 @@ def main():
     parser.add_argument('-D', '--device',
             help='select a device by id [local]',
             default='local')
+    subparser = parser.add_subparsers(title='subcommands',
+            help='Spawn or Attach')
+    attach = subparser.add_parser('attach', help='Attach to an existing process by pid or name')
+    attach.add_argument('attach_target', default='-1', help='Target pid or process name for attach')
+    spawn = subparser.add_parser('spawn', help='Spawn a new process by path')
+    spawn.add_argument('spawn_target', help='Target path to spawn', nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
 
@@ -287,17 +290,23 @@ def main():
     device = frida.get_device(args.device)
 
     target = -1
-    for p in device.enumerate_processes():
-        if args.target in [str(p.pid), p.name]:
-            if target == -1:
-                target = p.pid
-            else:
-                print('[-] Warning: multiple processes on device match '
-                      '\'%s\', using pid: %d' % (args.target, target))
+    if 'attach_target' in args:
+        for p in device.enumerate_processes():
+            if args.attach_target in [str(p.pid), p.name]:
+                if target == -1:
+                    target = p.pid
+                else:
+                    print('[-] Warning: multiple processes on device match '
+                        '\'%s\', using pid: %d' % (args.attach_target, target))
+                    break
+    else:
+        target = device.spawn(args.spawn_target[0], argv=args.spawn_target)
 
     if target == -1:
-        print('[-] Error: could not find process matching '
-              '\'%s\' on device \'%s\'' % (args.target, device.id))
+        proc = args.attach_target if 'attach_target' in args else args.spawn_target
+
+        print('[-] Error: could not find or start process matching '
+              '\'%s\' on device \'%s\'' % (proc, device.id))
         sys.exit(1)
 
     signal.signal(signal.SIGINT, sigint)
@@ -322,6 +331,8 @@ def main():
     script = session.create_script(js % (json_whitelist_modules, json_threadlist))
     script.on('message', on_message)
     script.load()
+
+    device.resume(target)
 
     print('[*] Now collecting info, control-D to terminate....')
 

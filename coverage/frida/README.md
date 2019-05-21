@@ -19,13 +19,13 @@ sudo pip install frida
 Once frida is installed, the `frida-drcov.py` script in this repo can be used to collect coverage against a running process as demonstrated below. By default, the code coverage data will be written to the file `frida-drcov.log` at the end of execution.
 
 ```
-python frida-drcov.py <process name | pid>
+python frida-drcov.py [options] <attach | spawn> <process name | pid>
 ```
 
 Here is an example of us instrumenting the running process `bb-bench`.
 
 ```
-$ sudo python frida-drcov.py bb-bench
+$ sudo python frida-drcov.py attach bb-bench
 [+] Got module info
 Starting to stalk threads...
 Stalking thread 775
@@ -42,7 +42,7 @@ $ ls -lh frida-cov.log # this is the file you will load into lighthouse
 Using the `-o` flag, one can specify a custom name/location for the coverage log file:
 
 ```
-python frida-drcov.py -o more-coverage.log foo
+python frida-drcov.py -o more-coverage.log spawn foo
 ```
 
 ## Module Whitelisting
@@ -50,7 +50,7 @@ python frida-drcov.py -o more-coverage.log foo
 One can whitelist specific modules inside the target process. Say you have binary `foo` which imports the libraries `libfoo`, `libbar`, and `libbaz`. Using the `-w` flag (whitelist) on the command line, we can explicitly target modules of interest:
 
 ```
-$ python frida-drcov.py -w libfoo -w libbaz foo
+$ python frida-drcov.py -w libfoo -w libbaz spawn foo
 ```
 
 This will reduce the amount of information collected and improve performance. If no `-w` arguments are supplied, `frida-drcov.py` will trace all loaded images.
@@ -62,7 +62,7 @@ On multi-threaded applications, tracing all threads can impose significant overh
 In the following example, we target thread id `543`, and `678` running in the process named `foo`.
 
 ```
-python frida-drcov.py -t 543 -t 678 foo
+python frida-drcov.py -t 543 -t 678 attach foo
 ```
 
 Without the `-t` flag, all threads that exist in the process at the time of attach will be traced.
